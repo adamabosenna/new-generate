@@ -1,252 +1,245 @@
-const { createCanvas, loadImage } = require("canvas");
-const path = require("path");
-const fs = require("fs");
-const operatorImages = require("../operatorImages");
+const { createCanvas, loadImage } = require('canvas');
+const path = require('path');
+const fs = require('fs');
+const operatorImages = require('../operatorImages');
 
 function normalizeKey(name) {
-  if (!name) return "";
-  return name.toString().toLowerCase().trim().replace(/\s+/g, "_").replace(/\.+/g, "");
+  if (!name) return '';
+  return String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-function possibleFileNames(base) {
-  const variants = [];
-  if (base) variants.push(base);
-  const noExt = base ? base.replace(/\.[^.]+$/, "") : base;
-  if (noExt) {
-    variants.push(noExt + ".png");
-    variants.push(noExt + ".jpeg");
-    variants.push(noExt + ".jpg");
-    variants.push(noExt + ".png.jpeg");
-    variants.push(noExt + ".png.jpg");
-  }
-  return Array.from(new Set(variants));
+function possibleFileNames(name) {
+  if (!name) return [];
+  const n = String(name).trim();
+  return [n + '.png', n + '.jpg', n + '.jpeg', n + '.PNG', n + '.JPG', n + '.JPEG'];
 }
 
-// Try these directories (order matters). Add others if your repo uses a different path.
-const operatorDirs = [
-  path.join(process.cwd(), "images", "operators"),
-  path.join(process.cwd(), "image", "operators"),
-  path.join(__dirname, "..", "images", "operators"),
-  path.join(__dirname, "..", "image", "operators"),
-  path.join(process.cwd(), "assets", "image", "operators"),
-  path.join(process.cwd(), "assets", "images", "operators")
-];
-
-// Helper: Draw rounded rectangle
-function drawRoundedRect(ctx, x, y, width, height, radius) {
+function drawRoundedRect(ctx, x, y, w, h, r) {
+  const radius = r || 6;
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
   ctx.closePath();
 }
 
-// High-value missions that get glow effect
-const highValueMissions = ["B.S.S", "Breach", "Clean Up"];
-
-module.exports = async function generateMissionImage(missions) {
-  const width = 1600;
+module.exports = async function generateMissionImage(missions = []) {
+  // Configuration
+  const width = 1200;
   const opsPerRow = 5;
   const opTileWidth = 100;
-  const opTileHeight = 150; // INCREASED for better name visibility
-  const rowHeight = 160; // INCREASED to match new tile height
-  
-  // Calculate dynamic height based on SELECTED missions only (no Skip)
-  let estimatedHeight = 140; // header area
-  const selectedMissions = missions.filter(m => m.name !== "Skip");
+  const opTileHeight = 150; // room for name label
+  const rowHeight = 170;
+
+  // Directories to search for operator images
+  const operatorDirs = [
+    path.join(__dirname, '..', 'images', 'operators'),
+    path.join(__dirname, '..', 'image'),
+    path.join(__dirname, '..', 'images'),
+  ];
+
+  // Normalize and filter missions (ignore explicit "Skip")
+  const selectedMissions = Array.isArray(missions)
+    ? missions.filter((m) => m && String(m.name).trim().toLowerCase() !== 'skip')
+    : [];
+
+  // Compute canvas height dynamically based only on selected missions
+  let estimatedHeight = 140; // header space
   for (const mission of selectedMissions) {
-    const operatorCount = mission.operators.length;
-    const rowsNeeded = Math.ceil(operatorCount / opsPerRow);
-    const missionCardHeight = 140 + (rowsNeeded * rowHeight); // adjusted for new spacing
-    estimatedHeight += missionCardHeight + 30; // mission + spacing
+    const operatorCount = Array.isArray(mission.operators) ? mission.operators.length : 0;
+    const rowsNeeded = Math.max(1, Math.ceil(operatorCount / opsPerRow));
+    const missionCardHeight = 140 + (rowsNeeded * rowHeight);
+    estimatedHeight += missionCardHeight + 30; // spacing between cards
   }
-  estimatedHeight += 60; // footer area
-  const height = Math.max(estimatedHeight, 600); // minimum height
-  
-  console.log(`Canvas size: ${width}x${height}, Selected missions: ${selectedMissions.length}`);
-  
+  estimatedHeight += 80; // footer space
+  const height = Math.max(estimatedHeight, 480);
+
   const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
 
   // Background
-  ctx.fillStyle = "#061C37";
+  ctx.fillStyle = '#061C37';
   ctx.fillRect(0, 0, width, height);
 
-  // ===== HEADER =====
-  // Simple TACTIOPBOT text
-  ctx.fillStyle = "#FFFFFF";
-  ctx.font = "bold 60px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("TACTIOPBOT", width / 2, 60);
-  
-  console.log("✅ Drew header TACTIOPBOT");
+  // ===== HEADER (always drawn outside loops) =====
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 56px Sans';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('TACTIOPBOT', width / 2, 60);
 
-  // Divider line under header
-  ctx.strokeStyle = "#3FA9F5";
+  // Divider
+  ctx.strokeStyle = '#3FA9F5';
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(width / 2 - 150, 95);
-  ctx.lineTo(width / 2 + 150, 95);
+  ctx.moveTo(width / 2 - 180, 95);
+  ctx.lineTo(width / 2 + 180, 95);
   ctx.stroke();
 
-  let y = 140;
+  // Start drawing missions below header
+  let y = 120;
 
-  // ===== MISSIONS (only selected, no Skip) =====
+  // Helper to find operator image path
+  function findOperatorImage(opName) {
+    const key = normalizeKey(opName);
+    const mapped = operatorImages[key] || operatorImages[opName] || operatorImages[opName && opName.trim()];
+    const candidates = [];
+    if (mapped) candidates.push(...possibleFileNames(mapped));
+    candidates.push(...possibleFileNames(key));
+    candidates.push(...possibleFileNames(opName));
+
+    const tried = new Set();
+    for (const dir of operatorDirs) {
+      for (const fname of candidates) {
+        if (!fname) continue;
+        const imgPath = path.join(dir, fname);
+        if (tried.has(imgPath)) continue;
+        tried.add(imgPath);
+        if (fs.existsSync(imgPath)) return imgPath;
+      }
+    }
+    return null;
+  }
+
+  // Draw mission cards and operator tiles
+  const highValueMissions = ['Assured', 'High Value', 'Veteran', 'Standard'];
+
   for (const mission of selectedMissions) {
-
     const isHighValue = highValueMissions.includes(mission.name);
     const cardPadding = 20;
     const cardX = 40;
-    const cardY = y;
+    const operatorCount = Array.isArray(mission.operators) ? mission.operators.length : 0;
+    const rowsNeeded = Math.max(1, Math.ceil(operatorCount / opsPerRow));
+    const cardHeight = operatorCount > 0 ? 130 + rowsNeeded * rowHeight : 100;
     const cardWidth = width - 80;
-    
-    // DYNAMIC: Calculate card height based on operator count
-    const operatorCount = mission.operators.length;
-    const rowsNeeded = Math.ceil(operatorCount / opsPerRow);
-    const cardHeight = operatorCount > 0 ? 130 + (rowsNeeded * rowHeight) : 100;
+    const cardY = y;
 
-    // Draw card with glow effect for high-value missions
+    // Glow for high value
     if (isHighValue) {
-      ctx.fillStyle = "rgba(63, 169, 245, 0.2)";
-      drawRoundedRect(ctx, cardX - 5, cardY - 5, cardWidth + 10, cardHeight + 10, 18);
+      ctx.fillStyle = 'rgba(63,169,245,0.12)';
+      drawRoundedRect(ctx, cardX - 6, cardY - 6, cardWidth + 12, cardHeight + 12, 18);
       ctx.fill();
     }
 
-    // Card background - MUCH MORE VISIBLE
-    ctx.fillStyle = "#0b2a44";
+    // Card background
+    ctx.fillStyle = '#0b2a44';
     drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 14);
     ctx.fill();
 
-    // Card border - brighter
-    ctx.strokeStyle = "#1e5fa3";
+    // Card border
+    ctx.strokeStyle = '#1e5fa3';
     ctx.lineWidth = 2;
     drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 14);
     ctx.stroke();
 
-    // Mission title - PURE WHITE
-    ctx.fillStyle = "#FFFFFF";
-    ctx.font = "bold 40px Arial";
-    ctx.textAlign = "left";
-    const missionText = String(mission.name).trim();
-    ctx.fillText(missionText, cardX + cardPadding, cardY + 40);
-    console.log(`✅ Drew mission title: ${missionText}`);
+    // Mission title
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 36px Sans';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    const missionText = String(mission.name || '').trim();
+    ctx.fillText(missionText, cardX + cardPadding, cardY + 46);
 
-    // Strong accent line under mission title
-    ctx.strokeStyle = "#3FA9F5";
+    // Accent line
+    ctx.strokeStyle = '#3FA9F5';
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo(cardX + cardPadding, cardY + 70);
-    ctx.lineTo(cardX + cardPadding + 250, cardY + 70);
+    ctx.moveTo(cardX + cardPadding, cardY + 74);
+    ctx.lineTo(cardX + cardPadding + 260, cardY + 74);
     ctx.stroke();
 
+    // Operators
     let opX = cardX + cardPadding;
     let opY = cardY + 100;
-
     let opCount = 0;
 
-    // ===== OPERATOR CARDS =====
     for (const op of mission.operators || []) {
-      const key = normalizeKey(op.name);
-      const mapped = operatorImages[key] || operatorImages[op.name] || operatorImages[op.name && op.name.trim()];
+      // Tile background and border (always)
+      ctx.fillStyle = '#0f3557';
+      drawRoundedRect(ctx, opX, opY, opTileWidth, opTileHeight, 10);
+      ctx.fill();
 
-      const candidates = [];
-      if (mapped) candidates.push(...possibleFileNames(mapped));
-      candidates.push(...possibleFileNames(key));
-      candidates.push(...possibleFileNames(op.name));
+      ctx.strokeStyle = '#1e5fa3';
+      ctx.lineWidth = 2;
+      drawRoundedRect(ctx, opX, opY, opTileWidth, opTileHeight, 10);
+      ctx.stroke();
 
-      let foundPath = null;
-      const tried = [];
-
-      for (const dir of operatorDirs) {
-        for (const fname of candidates) {
-          if (!fname) continue;
-          const imgPath = path.join(dir, fname);
-          if (tried.includes(imgPath)) continue;
-          tried.push(imgPath);
-          if (fs.existsSync(imgPath)) {
-            foundPath = imgPath;
-            break;
-          }
+      // Attempt to find and draw image; otherwise draw placeholder
+      const foundPath = findOperatorImage(op.name);
+      if (foundPath) {
+        try {
+          const img = await loadImage(foundPath);
+          const imgW = Math.min(opTileWidth - 10, 90);
+          const imgH = Math.min(opTileHeight - 55, 90);
+          ctx.drawImage(img, opX + (opTileWidth - imgW) / 2, opY + 8, imgW, imgH);
+        } catch (err) {
+          // draw subtle placeholder if load fails
+          ctx.fillStyle = 'rgba(255,255,255,0.06)';
+          drawRoundedRect(ctx, opX + 10, opY + 10, opTileWidth - 20, opTileHeight - 50, 6);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.6)';
+          ctx.font = 'bold 28px Sans';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('?', opX + opTileWidth / 2, opY + (opTileHeight - 50) / 2 + 12);
         }
-        if (foundPath) break;
-      }
-
-      if (!foundPath) {
-        console.log(`No operator image found for "${op.name}"`);
-        continue;
-      }
-
-      try {
-        // Operator tile background - LIGHTER and MORE VISIBLE
-        ctx.fillStyle = "#0f3557";
-        drawRoundedRect(ctx, opX, opY, opTileWidth, opTileHeight, 10);
+      } else {
+        // no image file; draw placeholder and continue to draw name
+        ctx.fillStyle = 'rgba(255,255,255,0.04)';
+        drawRoundedRect(ctx, opX + 10, opY + 10, opTileWidth - 20, opTileHeight - 50, 6);
         ctx.fill();
-
-        // Operator tile border - BRIGHTER
-        ctx.strokeStyle = "#1e5fa3";
-        ctx.lineWidth = 2;
-        drawRoundedRect(ctx, opX, opY, opTileWidth, opTileHeight, 10);
-        ctx.stroke();
-
-        // Load and draw operator image
-        const img = await loadImage(foundPath);
-        ctx.drawImage(img, opX + 5, opY + 5, 90, 90);
-
-        // Draw a solid label bar behind the operator name to guarantee visibility
-        const labelPaddingX = 6;
-        const labelHeight = 28;
-        const labelX = opX + 4;
-        const labelY = opY + opTileHeight - labelHeight - 6;
-        const labelW = opTileWidth - 8;
-
-        ctx.fillStyle = 'rgba(0,0,0,0.75)';
-        drawRoundedRect(ctx, labelX, labelY, labelW, labelHeight, 6);
-        ctx.fill();
-
-        // Operator name - high-contrast white text, trimmed to fit label width
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 14px sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = 'bold 28px Sans';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const opNameText = String(op.name || '').trim();
-        let text = opNameText;
-        const maxW = labelW - (labelPaddingX * 2);
-        while (ctx.measureText(text).width > maxW && text.length > 0) {
-          text = text.slice(0, -1);
-        }
-        if (text !== opNameText && text.length > 3) text = text.slice(0, -3) + '...';
-        ctx.fillText(text, labelX + labelW / 2, labelY + labelHeight / 2);
+        ctx.fillText('?', opX + opTileWidth / 2, opY + (opTileHeight - 50) / 2 + 12);
+      }
 
-        opCount++;
-        opX += 115;
+      // Name label (ALWAYS drawn)
+      const labelPaddingX = 6;
+      const labelHeight = 28;
+      const labelX = opX + 4;
+      const labelY = opY + opTileHeight - labelHeight - 6;
+      const labelW = opTileWidth - 8;
 
-        // Wrap to next row
-        if (opCount % opsPerRow === 0) {
-          opX = cardX + cardPadding;
-          opY += 145;
-        }
-      } catch (e) {
-        console.log("Failed to load/draw image:", foundPath, e && e.message);
+      ctx.fillStyle = 'rgba(0,0,0,0.78)';
+      drawRoundedRect(ctx, labelX, labelY, labelW, labelHeight, 6);
+      ctx.fill();
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 14px Sans';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const opNameText = String(op.name || '').trim();
+      let display = opNameText;
+      const maxW = labelW - labelPaddingX * 2;
+      while (ctx.measureText(display).width > maxW && display.length > 0) {
+        display = display.slice(0, -1);
+      }
+      if (display !== opNameText && display.length > 3) display = display.slice(0, -3) + '...';
+      ctx.fillText(display, labelX + labelW / 2, labelY + labelHeight / 2);
+
+      opCount++;
+      opX += opTileWidth + 15;
+
+      // wrap
+      if (opCount % opsPerRow === 0) {
+        opX = cardX + cardPadding;
+        opY += rowHeight;
       }
     }
 
     y = cardY + cardHeight + 30;
   }
 
-  // ===== FOOTER (ALWAYS drawn, no conditions) =====
-  ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-  ctx.font = "bold 14px 'Liberation Sans', 'DejaVu Sans', sans-serif";
-  ctx.textAlign = "right";
-  ctx.fillText("Powered by ytmazen", width - 40, height - 20);
-  console.log("✅ Drew footer");
+  // ===== FOOTER (always drawn outside loops) =====
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = "bold 14px Sans";
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('Powered by ytmazen', width - 40, height - 18);
 
-  const buffer = canvas.toBuffer("image/png");
-  console.log("✅ IMAGE GENERATED:", buffer ? buffer.length : "null/undefined");
-  return buffer;
+  return canvas.toBuffer('image/png');
 };
