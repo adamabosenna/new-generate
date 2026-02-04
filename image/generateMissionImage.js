@@ -79,14 +79,13 @@ module.exports = async function generateMissionImage(missions) {
   ctx.fillRect(0, 0, width, height);
 
   // ===== HEADER =====
-  // Gradient text for TACTIOPBOT
-  const gradient = ctx.createLinearGradient(0, 0, width, 0);
-  gradient.addColorStop(0, "#7FC9E8");
-  gradient.addColorStop(1, "#FFFFFF");
-  ctx.fillStyle = gradient;
-  ctx.font = "bold 70px 'Liberation Sans', 'DejaVu Sans', sans-serif";
+  // Simple TACTIOPBOT text
+  ctx.fillStyle = "#FFFFFF";
+  ctx.font = "bold 60px Arial";
   ctx.textAlign = "center";
-  ctx.fillText("TACTIOPBOT", width / 2, 70);
+  ctx.fillText("TACTIOPBOT", width / 2, 60);
+  
+  console.log("✅ Drew header TACTIOPBOT");
 
   // Divider line under header
   ctx.strokeStyle = "#3FA9F5";
@@ -130,12 +129,13 @@ module.exports = async function generateMissionImage(missions) {
     drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 14);
     ctx.stroke();
 
-    // Mission title - PURE WHITE, BIGGER
+    // Mission title - PURE WHITE
     ctx.fillStyle = "#FFFFFF";
-    ctx.font = "bold 50px 'Liberation Sans', 'DejaVu Sans', sans-serif";
+    ctx.font = "bold 40px Arial";
     ctx.textAlign = "left";
     const missionText = String(mission.name).trim();
-    ctx.fillText(missionText, cardX + cardPadding, cardY + 52);
+    ctx.fillText(missionText, cardX + cardPadding, cardY + 40);
+    console.log(`✅ Drew mission title: ${missionText}`);
 
     // Strong accent line under mission title
     ctx.strokeStyle = "#3FA9F5";
@@ -227,6 +227,7 @@ module.exports = async function generateMissionImage(missions) {
   ctx.font = "bold 14px 'Liberation Sans', 'DejaVu Sans', sans-serif";
   ctx.textAlign = "right";
   ctx.fillText("Powered by ytmazen", width - 40, height - 20);
+  console.log("✅ Drew footer");
 
   const buffer = canvas.toBuffer("image/png");
   console.log("✅ IMAGE GENERATED:", buffer ? buffer.length : "null/undefined");
