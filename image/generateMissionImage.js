@@ -84,7 +84,7 @@ module.exports = async function generateMissionImage(missions) {
   gradient.addColorStop(0, "#7FC9E8");
   gradient.addColorStop(1, "#FFFFFF");
   ctx.fillStyle = gradient;
-  ctx.font = "bold 72px 'Arial', sans-serif";
+  ctx.font = "bold 72px Courier New";
   ctx.textAlign = "center";
   ctx.shadowColor = "rgba(0, 150, 255, 0.4)";
   ctx.shadowBlur = 8;
@@ -135,7 +135,7 @@ module.exports = async function generateMissionImage(missions) {
 
     // Mission title - PURE WHITE, BIGGER, WITH GLOW
     ctx.fillStyle = "#FFFFFF";
-    ctx.font = "bold 52px 'Arial', sans-serif";
+    ctx.font = "bold 52px Courier New";
     ctx.textAlign = "left";
     ctx.shadowColor = "rgba(0, 150, 255, 0.5)";
     ctx.shadowBlur = 6;
@@ -207,7 +207,7 @@ module.exports = async function generateMissionImage(missions) {
         // Operator name - BRIGHT WHITE with STRONG SHADOW for readability
         // Position at bottom of tile with proper spacing
         ctx.fillStyle = "#FFFFFF";
-        ctx.font = "bold 15px 'Arial', sans-serif";
+        ctx.font = "bold 15px Courier New";
         ctx.textAlign = "center";
         ctx.shadowColor = "rgba(0, 0, 0, 0.95)";
         ctx.shadowBlur = 6;
@@ -234,7 +234,7 @@ module.exports = async function generateMissionImage(missions) {
   // ===== FOOTER (ALWAYS drawn, no conditions) =====
   ctx.shadowBlur = 0; // reset any shadow state
   ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-  ctx.font = "bold 16px 'Arial', sans-serif";
+  ctx.font = "bold 16px Courier New";
   ctx.textAlign = "right";
   ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
   ctx.shadowBlur = 3;
