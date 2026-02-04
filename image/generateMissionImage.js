@@ -62,10 +62,8 @@ module.exports = async function generateMissionImage(missions = []) {
     console.log(`  [${i+1}] ${dir} (exists: ${fs.existsSync(dir)})`);
   });
 
-  // Normalize and filter missions (ignore explicit "Skip")
-  const selectedMissions = Array.isArray(missions)
-    ? missions.filter((m) => m && String(m.name).trim().toLowerCase() !== 'skip')
-    : [];
+  // Use full missions array (keep skipped slots) so we can render M1..M8
+  const selectedMissions = Array.isArray(missions) ? missions : [];
 
   // Compute canvas height dynamically based only on selected missions
   let estimatedHeight = 140; // header space
@@ -141,7 +139,8 @@ module.exports = async function generateMissionImage(missions = []) {
   // Draw mission cards and operator tiles
   const highValueMissions = ['Assured', 'High Value', 'Veteran', 'Standard'];
 
-  for (const mission of selectedMissions) {
+  for (let slotIndex = 0; slotIndex < selectedMissions.length; slotIndex++) {
+    const mission = selectedMissions[slotIndex] || { name: 'Skip', operators: [] };
     const isHighValue = highValueMissions.includes(mission.name);
     const cardPadding = 20;
     const cardX = 40;
@@ -174,9 +173,11 @@ module.exports = async function generateMissionImage(missions = []) {
     ctx.font = fs.existsSync(path.join(__dirname, '..', 'fonts', 'OpenSans-Bold.ttf')) ? '36px "OpenSans"' : 'bold 36px Sans';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    const missionText = String(mission.name || '').trim();
-    ctx.fillText(missionText, cardX + cardPadding, cardY + 46);
-    console.log('DREW MISSION:', missionText);
+    // Draw slot label (M1..M8) and mission name (or skipped)
+    const missionText = String(mission.name || 'Skip').trim();
+    const slotLabel = `M${slotIndex + 1} - ${missionText === 'Skip' ? '(skipped)' : missionText}`;
+    ctx.fillText(slotLabel, cardX + cardPadding, cardY + 46);
+    console.log('DREW MISSION:', slotLabel);
 
     // Accent line
     ctx.strokeStyle = '#3FA9F5';
@@ -191,7 +192,7 @@ module.exports = async function generateMissionImage(missions = []) {
     let opY = cardY + 100;
     let opCount = 0;
 
-    for (const op of mission.operators || []) {
+    for (const op of (mission.operators || [])) {
       // Tile background and border (always)
       ctx.fillStyle = '#0f3557';
       drawRoundedRect(ctx, opX, opY, opTileWidth, opTileHeight, 10);
