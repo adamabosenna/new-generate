@@ -198,16 +198,13 @@ module.exports = async function generateMissionImage(missions) {
         const img = await loadImage(foundPath);
         ctx.drawImage(img, opX + 5, opY + 5, 90, 90);
 
-        // Name background bar at bottom
-        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-        ctx.fillRect(opX, opY + 100, opTileWidth, 50);
-
-        // Operator name - YELLOW TEXT
-        ctx.fillStyle = "#FFFF00";
-        ctx.font = "14px Arial";
+        // Operator name - WHITE TEXT below image
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "11px Arial";
         ctx.textAlign = "center";
         const opNameText = String(op.name).trim();
-        ctx.fillText(opNameText, opX + 50, opY + 125);
+        ctx.fillText(opNameText, opX + 50, opY + 100, 95);
+        ctx.fillText(opNameText, opX + 50, opY + 115, 95);
 
         opCount++;
         opX += 115;
