@@ -54,19 +54,22 @@ module.exports = async function generateMissionImage(missions) {
   const width = 1600;
   const opsPerRow = 5;
   const opTileWidth = 100;
-  const opTileHeight = 135;
-  const rowHeight = 145;
+  const opTileHeight = 150; // INCREASED for better name visibility
+  const rowHeight = 160; // INCREASED to match new tile height
   
-  // Calculate dynamic height based on actual operator counts
-  let estimatedHeight = 200; // header + padding
-  for (const mission of missions) {
-    if (mission.name === "Skip") continue;
+  // Calculate dynamic height based on SELECTED missions only (no Skip)
+  let estimatedHeight = 140; // header area
+  const selectedMissions = missions.filter(m => m.name !== "Skip");
+  for (const mission of selectedMissions) {
     const operatorCount = mission.operators.length;
     const rowsNeeded = Math.ceil(operatorCount / opsPerRow);
-    const missionCardHeight = 130 + (rowsNeeded * rowHeight); // base + rows
+    const missionCardHeight = 140 + (rowsNeeded * rowHeight); // adjusted for new spacing
     estimatedHeight += missionCardHeight + 30; // mission + spacing
   }
+  estimatedHeight += 60; // footer area
   const height = Math.max(estimatedHeight, 600); // minimum height
+  
+  console.log(`Canvas size: ${width}x${height}, Selected missions: ${selectedMissions.length}`);
   
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
@@ -81,7 +84,7 @@ module.exports = async function generateMissionImage(missions) {
   gradient.addColorStop(0, "#7FC9E8");
   gradient.addColorStop(1, "#FFFFFF");
   ctx.fillStyle = gradient;
-  ctx.font = "bold 72px Arial";
+  ctx.font = "bold 72px 'Arial', sans-serif";
   ctx.textAlign = "center";
   ctx.shadowColor = "rgba(0, 150, 255, 0.4)";
   ctx.shadowBlur = 8;
@@ -98,9 +101,8 @@ module.exports = async function generateMissionImage(missions) {
 
   let y = 140;
 
-  // ===== MISSIONS =====
-  for (const mission of missions) {
-    if (mission.name === "Skip") continue;
+  // ===== MISSIONS (only selected, no Skip) =====
+  for (const mission of selectedMissions) {
 
     const isHighValue = highValueMissions.includes(mission.name);
     const cardPadding = 20;
@@ -133,11 +135,12 @@ module.exports = async function generateMissionImage(missions) {
 
     // Mission title - PURE WHITE, BIGGER, WITH GLOW
     ctx.fillStyle = "#FFFFFF";
-    ctx.font = "bold 52px Arial";
+    ctx.font = "bold 52px 'Arial', sans-serif";
     ctx.textAlign = "left";
     ctx.shadowColor = "rgba(0, 150, 255, 0.5)";
     ctx.shadowBlur = 6;
-    ctx.fillText(mission.name, cardX + cardPadding, cardY + 52);
+    const missionText = String(mission.name).trim();
+    ctx.fillText(missionText, cardX + cardPadding, cardY + 52);
     ctx.shadowBlur = 0;
 
     // Strong accent line under mission title
@@ -188,26 +191,28 @@ module.exports = async function generateMissionImage(missions) {
       try {
         // Operator tile background - LIGHTER and MORE VISIBLE
         ctx.fillStyle = "#0f3557";
-        drawRoundedRect(ctx, opX, opY, 100, 135, 10);
+        drawRoundedRect(ctx, opX, opY, opTileWidth, opTileHeight, 10);
         ctx.fill();
 
         // Operator tile border - BRIGHTER
         ctx.strokeStyle = "#1e5fa3";
         ctx.lineWidth = 2;
-        drawRoundedRect(ctx, opX, opY, 100, 135, 10);
+        drawRoundedRect(ctx, opX, opY, opTileWidth, opTileHeight, 10);
         ctx.stroke();
 
-        // Load and draw operator image - SLIGHTLY LARGER
+        // Load and draw operator image
         const img = await loadImage(foundPath);
         ctx.drawImage(img, opX + 5, opY + 5, 90, 90);
 
         // Operator name - BRIGHT WHITE with STRONG SHADOW for readability
+        // Position at bottom of tile with proper spacing
         ctx.fillStyle = "#FFFFFF";
-        ctx.font = "bold 16px Arial";
+        ctx.font = "bold 15px 'Arial', sans-serif";
         ctx.textAlign = "center";
         ctx.shadowColor = "rgba(0, 0, 0, 0.95)";
         ctx.shadowBlur = 6;
-        ctx.fillText(op.name, opX + 50, opY + 125);
+        const opNameText = String(op.name).trim();
+        ctx.fillText(opNameText, opX + opTileWidth / 2, opY + opTileHeight - 12);
         ctx.shadowBlur = 0;
 
         opCount++;
@@ -226,9 +231,10 @@ module.exports = async function generateMissionImage(missions) {
     y = cardY + cardHeight + 30;
   }
 
-  // ===== FOOTER =====
+  // ===== FOOTER (ALWAYS drawn, no conditions) =====
+  ctx.shadowBlur = 0; // reset any shadow state
   ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-  ctx.font = "bold 16px Arial";
+  ctx.font = "bold 16px 'Arial', sans-serif";
   ctx.textAlign = "right";
   ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
   ctx.shadowBlur = 3;
