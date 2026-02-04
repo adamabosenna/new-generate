@@ -84,7 +84,7 @@ module.exports = async function generateMissionImage(missions) {
   gradient.addColorStop(0, "#7FC9E8");
   gradient.addColorStop(1, "#FFFFFF");
   ctx.fillStyle = gradient;
-  ctx.font = "bold 70px Arial";
+  ctx.font = "bold 70px 'Liberation Sans', 'DejaVu Sans', sans-serif";
   ctx.textAlign = "center";
   ctx.fillText("TACTIOPBOT", width / 2, 70);
 
@@ -132,7 +132,7 @@ module.exports = async function generateMissionImage(missions) {
 
     // Mission title - PURE WHITE, BIGGER
     ctx.fillStyle = "#FFFFFF";
-    ctx.font = "bold 50px Arial";
+    ctx.font = "bold 50px 'Liberation Sans', 'DejaVu Sans', sans-serif";
     ctx.textAlign = "left";
     const missionText = String(mission.name).trim();
     ctx.fillText(missionText, cardX + cardPadding, cardY + 52);
@@ -202,13 +202,12 @@ module.exports = async function generateMissionImage(missions) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
         ctx.fillRect(opX, opY + 100, opTileWidth, 50);
 
-        // Operator name - WHITE TEXT
+        // Operator name - YELLOW TEXT
         ctx.fillStyle = "#FFFF00";
-        ctx.font = "bold 13px Arial";
+        ctx.font = "14px Arial";
         ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
         const opNameText = String(op.name).trim();
-        ctx.fillText(opNameText, opX + opTileWidth / 2, opY + 125, 95);
+        ctx.fillText(opNameText, opX + 50, opY + 125);
 
         opCount++;
         opX += 115;
@@ -228,7 +227,7 @@ module.exports = async function generateMissionImage(missions) {
 
   // ===== FOOTER (ALWAYS drawn, no conditions) =====
   ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-  ctx.font = "bold 14px Arial";
+  ctx.font = "bold 14px 'Liberation Sans', 'DejaVu Sans', sans-serif";
   ctx.textAlign = "right";
   ctx.fillText("Powered by ytmazen", width - 40, height - 20);
 
