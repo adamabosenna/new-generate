@@ -84,12 +84,9 @@ module.exports = async function generateMissionImage(missions) {
   gradient.addColorStop(0, "#7FC9E8");
   gradient.addColorStop(1, "#FFFFFF");
   ctx.fillStyle = gradient;
-  ctx.font = "72px monospace";
+  ctx.font = "bold 70px Arial";
   ctx.textAlign = "center";
-  ctx.shadowColor = "rgba(0, 150, 255, 0.4)";
-  ctx.shadowBlur = 8;
   ctx.fillText("TACTIOPBOT", width / 2, 70);
-  ctx.shadowBlur = 0;
 
   // Divider line under header
   ctx.strokeStyle = "#3FA9F5";
@@ -133,15 +130,12 @@ module.exports = async function generateMissionImage(missions) {
     drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 14);
     ctx.stroke();
 
-    // Mission title - PURE WHITE, BIGGER, WITH GLOW
+    // Mission title - PURE WHITE, BIGGER
     ctx.fillStyle = "#FFFFFF";
-    ctx.font = "52px monospace";
+    ctx.font = "bold 50px Arial";
     ctx.textAlign = "left";
-    ctx.shadowColor = "rgba(0, 150, 255, 0.5)";
-    ctx.shadowBlur = 6;
     const missionText = String(mission.name).trim();
     ctx.fillText(missionText, cardX + cardPadding, cardY + 52);
-    ctx.shadowBlur = 0;
 
     // Strong accent line under mission title
     ctx.strokeStyle = "#3FA9F5";
@@ -205,16 +199,16 @@ module.exports = async function generateMissionImage(missions) {
         ctx.drawImage(img, opX + 5, opY + 5, 90, 90);
 
         // Name background bar at bottom
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
         ctx.fillRect(opX, opY + 100, opTileWidth, 50);
 
-        // Operator name - WHITE TEXT on dark background
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = "14px sans-serif";
+        // Operator name - WHITE TEXT
+        ctx.fillStyle = "#FFFF00";
+        ctx.font = "bold 13px Arial";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const opNameText = String(op.name).trim();
-        ctx.fillText(opNameText, opX + opTileWidth / 2, opY + 125, 90);
+        ctx.fillText(opNameText, opX + opTileWidth / 2, opY + 125, 95);
 
         opCount++;
         opX += 115;
@@ -233,14 +227,10 @@ module.exports = async function generateMissionImage(missions) {
   }
 
   // ===== FOOTER (ALWAYS drawn, no conditions) =====
-  ctx.shadowBlur = 0; // reset any shadow state
-  ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-  ctx.font = "16px monospace";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+  ctx.font = "bold 14px Arial";
   ctx.textAlign = "right";
-  ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
-  ctx.shadowBlur = 3;
   ctx.fillText("Powered by ytmazen", width - 40, height - 20);
-  ctx.shadowBlur = 0;
 
   const buffer = canvas.toBuffer("image/png");
   console.log("✅ IMAGE GENERATED:", buffer ? buffer.length : "null/undefined");
