@@ -4,20 +4,44 @@ const fs = require('fs');
 const operatorImages = require('../operatorImages');
 
 // Try to register bundled fonts if available (improves cross-host rendering on Railway)
-try {
-  const fontsDir = path.join(__dirname, '..', 'fonts');
-  const boldPath = path.join(fontsDir, 'OpenSans-Bold.ttf');
-  const regularPath = path.join(fontsDir, 'OpenSans-Regular.ttf');
-  if (fs.existsSync(boldPath)) {
-    registerFont(boldPath, { family: 'OpenSans', weight: 'bold' });
-    console.log('Registered font:', boldPath);
+// Scans both ./fonts and ./assets/fonts and registers any .ttf files it finds.
+const registeredFamilies = new Set();
+const scanFontDirs = [path.join(__dirname, '..', 'fonts'), path.join(__dirname, '..', 'assets', 'fonts')];
+for (const fontsDir of scanFontDirs) {
+  try {
+    if (!fs.existsSync(fontsDir)) continue;
+    const files = fs.readdirSync(fontsDir);
+    for (const f of files) {
+      if (!f.toLowerCase().endsWith('.ttf')) continue;
+      const full = path.join(fontsDir, f);
+      // derive family name from filename (strip weight suffixes and extension)
+      let family = f.replace(/\.ttf$/i, '');
+      family = family.replace(/-?(Bold|Regular|Italic|Medium|SemiBold|Light|Black|ExtraBold)$/i, '');
+      family = family.replace(/[^a-z0-9]/gi, '');
+      try {
+        registerFont(full, { family });
+        registeredFamilies.add(family);
+        console.log('Registered font:', full, 'as', family);
+      } catch (e) {
+        console.log('Failed to register font', full, e && e.message);
+      }
+    }
+  } catch (err) {
+    console.log('Font scan failed for', fontsDir, err && err.message);
   }
-  if (fs.existsSync(regularPath)) {
-    registerFont(regularPath, { family: 'OpenSans', weight: 'normal' });
-    console.log('Registered font:', regularPath);
+}
+
+// Choose preferred family in order of common web fonts we might bundle
+const preferred = ['OpenSans', 'Inter', 'Roboto'];
+let fontFamily = null;
+for (const p of preferred) if (registeredFamilies.has(p)) { fontFamily = p; break; }
+if (!fontFamily && registeredFamilies.size > 0) fontFamily = Array.from(registeredFamilies)[0];
+
+function fontOrFallback(px, weight) {
+  if (fontFamily) {
+    return `${weight ? weight + ' ' : ''}${px}px "${fontFamily}"`;
   }
-} catch (err) {
-  console.log('Font register failed (ok on many hosts):', err && err.message);
+  return `${weight ? weight + ' ' : ''}${px}px Sans`;
 }
 
 function normalizeKey(name) {
@@ -62,12 +86,13 @@ module.exports = async function generateMissionImage(missions = []) {
     console.log(`  [${i+1}] ${dir} (exists: ${fs.existsSync(dir)})`);
   });
 
-  // Use full missions array (keep skipped slots) so we can render M1..M8
-  const selectedMissions = Array.isArray(missions) ? missions : [];
+  // Prepare selected missions (ignore explicit "Skip") for the image
+  const allSlots = Array.isArray(missions) ? missions : [];
+  const selectedOnly = allSlots.filter((m) => m && String(m.name).trim().toLowerCase() !== 'skip');
 
   // Compute canvas height dynamically based only on selected missions
   let estimatedHeight = 140; // header space
-  for (const mission of selectedMissions) {
+  for (const mission of selectedOnly) {
     const operatorCount = Array.isArray(mission.operators) ? mission.operators.length : 0;
     const rowsNeeded = Math.max(1, Math.ceil(operatorCount / opsPerRow));
     const missionCardHeight = 140 + (rowsNeeded * rowHeight);
@@ -85,8 +110,7 @@ module.exports = async function generateMissionImage(missions = []) {
 
   // ===== HEADER (always drawn outside loops) =====
   ctx.fillStyle = '#FFFFFF';
-  // Prefer bundled OpenSans if available
-  ctx.font = fs.existsSync(path.join(__dirname, '..', 'fonts', 'OpenSans-Bold.ttf')) ? '56px "OpenSans"' : 'bold 56px Sans';
+  ctx.font = fontOrFallback(56, 'bold');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('TACTIOPBOT', width / 2, 60);
@@ -139,8 +163,8 @@ module.exports = async function generateMissionImage(missions = []) {
   // Draw mission cards and operator tiles
   const highValueMissions = ['Assured', 'High Value', 'Veteran', 'Standard'];
 
-  for (let slotIndex = 0; slotIndex < selectedMissions.length; slotIndex++) {
-    const mission = selectedMissions[slotIndex] || { name: 'Skip', operators: [] };
+  for (let slotIndex = 0; slotIndex < selectedOnly.length; slotIndex++) {
+    const mission = selectedOnly[slotIndex] || { name: 'Skip', operators: [] };
     const isHighValue = highValueMissions.includes(mission.name);
     const cardPadding = 20;
     const cardX = 40;
@@ -170,12 +194,12 @@ module.exports = async function generateMissionImage(missions = []) {
 
     // Mission title
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = fs.existsSync(path.join(__dirname, '..', 'fonts', 'OpenSans-Bold.ttf')) ? '36px "OpenSans"' : 'bold 36px Sans';
+    ctx.font = fontOrFallback(36, 'bold');
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    // Draw slot label (M1..M8) and mission name (or skipped)
-    const missionText = String(mission.name || 'Skip').trim();
-    const slotLabel = `M${slotIndex + 1} - ${missionText === 'Skip' ? '(skipped)' : missionText}`;
+    // Draw sequential slot label for selected missions (M1..Mn)
+    const missionText = String(mission.name || '').trim();
+    const slotLabel = `M${slotIndex + 1} - ${missionText}`;
     ctx.fillText(slotLabel, cardX + cardPadding, cardY + 46);
     console.log('DREW MISSION:', slotLabel);
 
@@ -219,7 +243,7 @@ module.exports = async function generateMissionImage(missions = []) {
           drawRoundedRect(ctx, opX + 10, opY + 10, opTileWidth - 20, opTileHeight - 50, 6);
           ctx.fill();
           ctx.fillStyle = 'rgba(255,255,255,0.6)';
-          ctx.font = 'bold 28px Sans';
+          ctx.font = fontOrFallback(28, 'bold');
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('?', opX + opTileWidth / 2, opY + (opTileHeight - 50) / 2 + 12);
@@ -230,7 +254,7 @@ module.exports = async function generateMissionImage(missions = []) {
         drawRoundedRect(ctx, opX + 10, opY + 10, opTileWidth - 20, opTileHeight - 50, 6);
         ctx.fill();
         ctx.fillStyle = 'rgba(255,255,255,0.6)';
-        ctx.font = 'bold 28px Sans';
+        ctx.font = fontOrFallback(28, 'bold');
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('?', opX + opTileWidth / 2, opY + (opTileHeight - 50) / 2 + 12);
@@ -248,7 +272,7 @@ module.exports = async function generateMissionImage(missions = []) {
       ctx.fill();
 
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 14px Sans';
+      ctx.font = fontOrFallback(14, 'bold');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const opNameText = String(op.name || '').trim();
@@ -276,7 +300,7 @@ module.exports = async function generateMissionImage(missions = []) {
 
   // ===== FOOTER (always drawn outside loops) =====
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.font = fs.existsSync(path.join(__dirname, '..', 'fonts', 'OpenSans-Regular.ttf')) ? '14px "OpenSans"' : "bold 14px Sans";
+  ctx.font = fontOrFallback(14, '');
   ctx.textAlign = 'right';
   ctx.textBaseline = 'alphabetic';
   ctx.fillText('Powered by ytmazen', width - 40, height - 18);
