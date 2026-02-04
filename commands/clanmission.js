@@ -101,20 +101,32 @@ module.exports = {
     }),
 
   async execute(interaction) {
-    // 1️⃣ GET MISSIONS (always produce 8 slots; missing options -> "Skip")
+    // DEFER FIRST, before any processing — this gives us 15 minutes instead of 3 seconds
+    let useDeferReply = true;
+    try {
+      await interaction.deferReply();
+      console.log("✅ Deferred successfully");
+    } catch (deferErr) {
+      console.log("⚠️  Defer failed; using followUp instead. Error:", deferErr && deferErr.code);
+      useDeferReply = false;
+    }
+
+    // NOW get missions and process
     const missions = [];
     for (let i = 1; i <= 8; i++) {
       const m = interaction.options.getString(`m${i}`);
       missions.push(m ? m : "Skip");
     }
 
-    // Defer early so Discord shows "bot is thinking"
-    await interaction.deferReply();
-
     // Ensure at least one non-skip mission
     const nonSkip = missions.filter(m => m && m.toLowerCase() !== "skip");
     if (nonSkip.length === 0) {
-      return interaction.editReply("❌ You must pick at least one mission.");
+      try {
+        return await interaction.followUp("❌ You must pick at least one mission.");
+      } catch (err) {
+        console.error('Could not send error message:', err && err.message);
+      }
+      return;
     }
 
     // Assign best operators (pass full missions so assignment respects all slots)
@@ -164,23 +176,28 @@ module.exports = {
       const attachment = new AttachmentBuilder(buffer, { name: "clan_mission.png" });
       console.log("Attachment created. Sending reply with image...");
 
-      // Send text + image in ONE editReply
-      const response = await interaction.editReply({
-        content: reply,
-        files: [attachment],
-      });
-      console.log("✅ Reply sent successfully with image!");
+      // Use editReply if deferred, otherwise use followUp
+      if (useDeferReply) {
+        await interaction.editReply({ content: reply, files: [attachment] });
+        console.log("✅ Reply sent successfully with editReply!");
+      } else {
+        await interaction.followUp({ content: reply, files: [attachment] });
+        console.log("✅ Reply sent successfully with followUp!");
+      }
       
     } catch (err) {
       console.error("❌ Error in image generation/sending:", err.message || err);
-      console.error("Error stack:", err.stack);
       // Fallback: send textual reply only
       try {
         console.log("Sending fallback text-only reply...");
-        await interaction.editReply({ content: reply });
+        if (useDeferReply) {
+          await interaction.editReply({ content: reply });
+        } else {
+          await interaction.followUp({ content: reply });
+        }
         console.log("Fallback reply sent");
-      } catch (editErr) {
-        console.error("Error editing reply with fallback text:", editErr);
+      } catch (fallbackErr) {
+        console.error("Could not send fallback reply:", fallbackErr && fallbackErr.message);
       }
     }
   },
