@@ -204,17 +204,17 @@ module.exports = async function generateMissionImage(missions) {
         const img = await loadImage(foundPath);
         ctx.drawImage(img, opX + 5, opY + 5, 90, 90);
 
-        // Operator name - BRIGHT WHITE with STRONG SHADOW for readability
-        // Position at bottom of tile with proper spacing
+        // Name background bar at bottom
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillRect(opX, opY + 100, opTileWidth, 50);
+
+        // Operator name - WHITE TEXT on dark background
         ctx.fillStyle = "#FFFFFF";
-        ctx.font = "18px monospace";
+        ctx.font = "14px sans-serif";
         ctx.textAlign = "center";
-        ctx.shadowColor = "rgba(0, 0, 0, 0.95)";
-        ctx.shadowBlur = 6;
+        ctx.textBaseline = "middle";
         const opNameText = String(op.name).trim();
-        // Position text inside the tile
-        ctx.fillText(opNameText, opX + opTileWidth / 2, opY + 115);
-        ctx.shadowBlur = 0;
+        ctx.fillText(opNameText, opX + opTileWidth / 2, opY + 125, 90);
 
         opCount++;
         opX += 115;
