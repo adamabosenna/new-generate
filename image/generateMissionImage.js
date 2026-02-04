@@ -198,13 +198,30 @@ module.exports = async function generateMissionImage(missions) {
         const img = await loadImage(foundPath);
         ctx.drawImage(img, opX + 5, opY + 5, 90, 90);
 
-        // Operator name - WHITE TEXT below image
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = "11px Arial";
-        ctx.textAlign = "center";
-        const opNameText = String(op.name).trim();
-        ctx.fillText(opNameText, opX + 50, opY + 100, 95);
-        ctx.fillText(opNameText, opX + 50, opY + 115, 95);
+        // Draw a solid label bar behind the operator name to guarantee visibility
+        const labelPaddingX = 6;
+        const labelHeight = 28;
+        const labelX = opX + 4;
+        const labelY = opY + opTileHeight - labelHeight - 6;
+        const labelW = opTileWidth - 8;
+
+        ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        drawRoundedRect(ctx, labelX, labelY, labelW, labelHeight, 6);
+        ctx.fill();
+
+        // Operator name - high-contrast white text, trimmed to fit label width
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const opNameText = String(op.name || '').trim();
+        let text = opNameText;
+        const maxW = labelW - (labelPaddingX * 2);
+        while (ctx.measureText(text).width > maxW && text.length > 0) {
+          text = text.slice(0, -1);
+        }
+        if (text !== opNameText && text.length > 3) text = text.slice(0, -3) + '...';
+        ctx.fillText(text, labelX + labelW / 2, labelY + labelHeight / 2);
 
         opCount++;
         opX += 115;
