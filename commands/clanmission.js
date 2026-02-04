@@ -1,4 +1,6 @@
 const { SlashCommandBuilder } = require("discord.js");
+const { AttachmentBuilder } = require("discord.js");
+const generateMissionImage = require("../image/generateMissionImage.js");
 const { missionData } = require("../missionData.js");
 
 const missionChoices = [
@@ -23,10 +25,9 @@ const missionChoices = [
 
 // Assign each operator to the selected mission where they have the highest value
 function assignBestOperators(missions) {
-  // For each operator, find the mission (from selected) where their value is highest
   const operatorAssignments = {};
   for (const mission of missions) {
-    if (mission === "skip") continue;
+    if (!mission || mission.toLowerCase() === "skip") continue;
     const ops = missionData[mission] || {};
     for (const [op, value] of Object.entries(ops)) {
       if (!operatorAssignments[op] || value > operatorAssignments[op].value) {
@@ -34,22 +35,23 @@ function assignBestOperators(missions) {
       }
     }
   }
-  // Group operators by their assigned mission
+
   const results = {};
   for (const mission of missions) {
-    if (mission === "skip") continue;
+    if (!mission || mission.toLowerCase() === "skip") continue;
     results[mission] = [];
   }
+
   for (const [op, { mission, value }] of Object.entries(operatorAssignments)) {
     if (results[mission]) {
       results[mission].push({ op, value });
     }
   }
-  // Sort each mission's operators by value descending
-  for (const mission of missions) {
-    if (mission === "skip") continue;
+
+  for (const mission of Object.keys(results)) {
     results[mission].sort((a, b) => b.value - a.value);
   }
+
   return results;
 }
 
@@ -99,39 +101,87 @@ module.exports = {
     }),
 
   async execute(interaction) {
+    // 1️⃣ GET MISSIONS (always produce 8 slots; missing options -> "Skip")
     const missions = [];
     for (let i = 1; i <= 8; i++) {
       const m = interaction.options.getString(`m${i}`);
-      if (m) missions.push(m);
+      missions.push(m ? m : "Skip");
     }
 
-    // Filter out skipped missions
-    const filteredMissions = missions.filter(m => m !== "skip");
-    if (filteredMissions.length === 0) {
-      return interaction.reply("❌ You must pick at least one mission.");
+    // Defer early so Discord shows "bot is thinking"
+    await interaction.deferReply();
+
+    // Ensure at least one non-skip mission
+    const nonSkip = missions.filter(m => m && m.toLowerCase() !== "skip");
+    if (nonSkip.length === 0) {
+      return interaction.editReply("❌ You must pick at least one mission.");
     }
 
+    // Assign best operators (pass full missions so assignment respects all slots)
     const results = assignBestOperators(missions);
 
+    // Build textual reply, preserving skipped slots in output order
     let reply = "**Best operator placement for your clan:**\n\n";
     missions.forEach((m, i) => {
-      if (m === "skip") {
+      if (!m || m.toLowerCase() === "skip") {
         reply += `M${i + 1} - (skipped)\n\n`;
         return;
       }
-      // Ensure Mia is visible alongside other operators for this mission
-      let opsList = results[m] && results[m].length ? results[m].map(o => ({ op: o.op, value: o.value })) : [];
-      if (missionData[m] && Object.prototype.hasOwnProperty.call(missionData[m], 'Mia')) {
-        const hasMia = opsList.some(x => x.op === 'Mia');
-        if (!hasMia) {
-          // Insert Mia at the front so she's easily visible
-          opsList.unshift({ op: 'Mia', value: missionData[m]['Mia'] });
-        }
-      }
+      const opsList = results[m] && results[m].length ? results[m].map(o => ({ op: o.op, value: o.value })) : [];
       const ops = opsList.length ? opsList.map(o => `${o.op} (${o.value})`).join(', ') : "No operators found for this mission";
       reply += `M${i + 1} - ${m}:\n${ops}\n\n`;
     });
 
-    await interaction.reply(reply);
+    try {
+      // Build mission objects for the image — ALWAYS 8 slots (skipped slots kept)
+      // Use SAME operators as shown in message (from results)
+      const missionObjects = missions.map(m => {
+        if (!m || m.toLowerCase() === "skip") {
+          return { name: "Skip", operators: [] };
+        }
+        const missionOps = results[m] || [];
+        return {
+          name: m,
+          operators: missionOps.map(o => ({ name: o.op, value: o.value }))
+        };
+      });
+
+      // Debug logs to help verify correct input to image generator
+      console.log("MISSIONS FOR IMAGE:", missionObjects.map(m => m.name));
+
+      // Generate image buffer
+      console.log("Starting image generation...");
+      const buffer = await generateMissionImage(missionObjects);
+      console.log("Image generated. Buffer:", buffer ? `${buffer.length} bytes` : "null/undefined");
+
+      // Validate buffer
+      if (!buffer || buffer.length === 0) {
+        console.error("generateMissionImage returned an invalid buffer");
+        throw new Error("Invalid image buffer");
+      }
+
+      console.log("Creating attachment...");
+      const attachment = new AttachmentBuilder(buffer, { name: "clan_mission.png" });
+      console.log("Attachment created. Sending reply with image...");
+
+      // Send text + image in ONE editReply
+      const response = await interaction.editReply({
+        content: reply,
+        files: [attachment],
+      });
+      console.log("✅ Reply sent successfully with image!");
+      
+    } catch (err) {
+      console.error("❌ Error in image generation/sending:", err.message || err);
+      console.error("Error stack:", err.stack);
+      // Fallback: send textual reply only
+      try {
+        console.log("Sending fallback text-only reply...");
+        await interaction.editReply({ content: reply });
+        console.log("Fallback reply sent");
+      } catch (editErr) {
+        console.error("Error editing reply with fallback text:", editErr);
+      }
+    }
   },
 };
