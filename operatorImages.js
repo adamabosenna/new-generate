@@ -1,4 +1,4 @@
-module.exports = {
+const raw = {
   apollon: "apollon.png.jpeg",
   batya: "batya.png.jpeg",
   boris: "boris.png.jpeg",
@@ -40,3 +40,18 @@ module.exports = {
   zloy: "zloy.png.jpeg",
   shi: "shi.png.jpeg"
 };
+
+// Build normalized lookup (lowercased, remove non-alphanum) to support Linux deployments
+function normalizeKey(name) {
+  if (!name) return '';
+  return String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+const normalized = {};
+for (const [k, v] of Object.entries(raw)) {
+  normalized[k] = v;
+  const nk = normalizeKey(k);
+  if (nk && !normalized[nk]) normalized[nk] = v;
+}
+
+module.exports = normalized;
