@@ -52,7 +52,22 @@ const highValueMissions = ["B.S.S", "Breach", "Clean Up"];
 
 module.exports = async function generateMissionImage(missions) {
   const width = 1600;
-  const height = 200 + missions.filter(m => m.name !== "Skip").length * 280;
+  const opsPerRow = 5;
+  const opTileWidth = 100;
+  const opTileHeight = 135;
+  const rowHeight = 145;
+  
+  // Calculate dynamic height based on actual operator counts
+  let estimatedHeight = 200; // header + padding
+  for (const mission of missions) {
+    if (mission.name === "Skip") continue;
+    const operatorCount = mission.operators.length;
+    const rowsNeeded = Math.ceil(operatorCount / opsPerRow);
+    const missionCardHeight = 130 + (rowsNeeded * rowHeight); // base + rows
+    estimatedHeight += missionCardHeight + 30; // mission + spacing
+  }
+  const height = Math.max(estimatedHeight, 600); // minimum height
+  
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
 
@@ -92,7 +107,11 @@ module.exports = async function generateMissionImage(missions) {
     const cardX = 40;
     const cardY = y;
     const cardWidth = width - 80;
-    const cardHeight = mission.operators.length > 0 ? 220 : 100;
+    
+    // DYNAMIC: Calculate card height based on operator count
+    const operatorCount = mission.operators.length;
+    const rowsNeeded = Math.ceil(operatorCount / opsPerRow);
+    const cardHeight = operatorCount > 0 ? 130 + (rowsNeeded * rowHeight) : 100;
 
     // Draw card with glow effect for high-value missions
     if (isHighValue) {
@@ -131,7 +150,7 @@ module.exports = async function generateMissionImage(missions) {
 
     let opX = cardX + cardPadding;
     let opY = cardY + 100;
-    const opsPerRow = 5;
+
     let opCount = 0;
 
     // ===== OPERATOR CARDS =====
