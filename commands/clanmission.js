@@ -1,38 +1,39 @@
-// Updated clan mission command
+// clanmission.js
 
-const clanMission = async (missions) => {
-    // Step 1: Beautify operator names by removing numbers
-    const beautifiedMissions = missions.map(mission => {
-        return {
-            ...mission,
-            operatorNames: mission.operatorNames.map(name => name.replace(/\d+/g, '')) // Removing numbers
-        };
-    });
+const { MessageEmbed } = require('discord.js');
 
-    // Step 2: Logic to put operators with SAME stars in the LAST mission only 
-    const finalMissions = {};
+module.exports = {
+    name: 'clanmission',
+    description: 'Displays clan mission details.',
+    async execute(message, args) {
+        const missions = [
+            { name: 'Mission A', completed: true },
+            { name: 'Mission B', completed: false },
+            { name: 'Mission C', completed: false, skipped: true },
+            // more missions...
+        ];
 
-    beautifiedMissions.forEach(mission => {
-        mission.operatorSlot.forEach(operator => {
-            const starRating = operator.stars;
-            if (!finalMissions[starRating]) {
-                finalMissions[starRating] = mission;
+        let completedMissions = '';  
+        let skippedMissions = '';
+
+        missions.forEach(mission => {
+            if (mission.completed) {
+                completedMissions += `✅ **${mission.name}**\n`;
+            } else if (mission.skipped) {
+                skippedMissions += `⏭️ **${mission.name}** (Skipped)\n`;
             } else {
-                finalMissions[starRating].operatorSlot = finalMissions[starRating].operatorSlot.concat(operator);
+                skippedMissions += `❌ **${mission.name}** (Pending)\n`;
             }
         });
-    });
 
-    // Create an array for the image generation with all 8 mission slots
-    const imageData = Object.values(finalMissions).slice(0, 8); // Assume we only need 8 missions
+        const embed = new MessageEmbed()
+            .setTitle('Clan Missions')
+            .setColor('#0099ff')
+            .setDescription('Here are the details of your clan missions:
+\n**Completed Missions:**\n' + (completedMissions || 'None') + '\n**Skipped Missions:**\n' + (skippedMissions || 'None'))  
+            .setTimestamp()
+            .setFooter('Stay strong, warriors!');
 
-    // Step 3: Pass correct data structure to image generator
-    passToImageGenerator(imageData);
+        message.channel.send({ embeds: [embed] });
+    },
 };
-
-const passToImageGenerator = (data) => {
-    // Logic to interface with image generator
-    console.log('Sending data to the image generator:', data);
-};
-
-module.exports = clanMission;
